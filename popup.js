@@ -164,36 +164,68 @@ document.addEventListener('DOMContentLoaded', function () {
     // Lấy random proxy từ danh sách
     function getRandomProxy(proxyList) {
         try {
-            const proxies = proxyList.split('\n')
-                .map(line => line.trim())
-                .filter(line => line !== '');
+            // Parse JSON string thành array
+            const proxies = JSON.parse(proxyList);
             
-            if (proxies.length === 0) {
+            if (!Array.isArray(proxies) || proxies.length === 0) {
                 throw new Error('Danh sách proxy trống');
             }
 
             const randomProxy = proxies[Math.floor(Math.random() * proxies.length)];
-            const parts = randomProxy.split(':');
-            
-            if (parts.length < 2) {
-                throw new Error('Định dạng proxy không hợp lệ');
-            }
-
             const selectedProtocol = document.querySelector('input[name="protocol"]:checked')?.value || 'http';
-            const proxyData = {
-                host: parts[0],
-                port: parseInt(parts[1]),
+            
+            return {
+                host: randomProxy.ip,
+                port: randomProxy.port,
+                username: randomProxy.username,
+                password: randomProxy.password,
+                geo_local: randomProxy.geo_local,
                 scheme: selectedProtocol
             };
-
-            if (parts.length >= 4) {
-                proxyData.username = parts[2];
-                proxyData.password = parts[3];
-            }
-            
-            return proxyData;
         } catch (error) {
             throw new Error('Không thể lấy proxy từ danh sách: ' + error.message);
+        }
+    }
+
+    // Hàm chuyển đổi JSON thành text theo dòng
+    function formatProxyListToText(proxyList) {
+        try {
+            // Nếu là string JSON, parse thành array
+            const proxies = typeof proxyList === 'string' ? JSON.parse(proxyList) : proxyList;
+            
+            // Format mỗi proxy thành một dòng
+            return proxies.map(proxy => {
+                if (proxy.username && proxy.password) {
+                    return `${proxy.ip}:${proxy.port}:${proxy.username}:${proxy.password}`;
+                }
+                return `${proxy.ip}:${proxy.port}`;
+            }).join('\n');
+        } catch (error) {
+            console.error('Error formatting proxy list:', error);
+            return '';
+        }
+    }
+
+    // Hàm chuyển đổi text thành JSON
+    function formatTextToProxyList(text) {
+        try {
+            const lines = text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line !== '');
+
+            return lines.map(line => {
+                const parts = line.split(':');
+                return {
+                    ip: parts[0],
+                    port: parseInt(parts[1]),
+                    username: parts[2] || '',
+                    password: parts[3] || '',
+                    scheme: 'http'
+                };
+            });
+        } catch (error) {
+            console.error('Error parsing proxy list:', error);
+            return [];
         }
     }
 
@@ -208,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const apiKey = apiKeyInput?.value.trim() || '';
-            const proxyList = proxyListInput?.value.trim() || '';
+            let proxyList = proxyListInput?.value.trim() || '';
             
             if (selectedType === 'api' && !apiKey) {
                 throw new Error('Vui lòng nhập API key');
@@ -216,6 +248,12 @@ document.addEventListener('DOMContentLoaded', function () {
             
             if (selectedType === 'list' && !proxyList) {
                 throw new Error('Vui lòng nhập danh sách proxy');
+            }
+
+            // Chuyển đổi proxyList thành JSON nếu là danh sách
+            if (selectedType === 'list') {
+                const proxyArray = formatTextToProxyList(proxyList);
+                proxyList = JSON.stringify(proxyArray);
             }
 
             // Lưu vào chrome.storage.local
@@ -237,6 +275,25 @@ document.addEventListener('DOMContentLoaded', function () {
     // Random proxy
     async function randomProxy() {
         try {
+            // Khóa nút Change trong 5 giây
+            if (randomBtn) {
+                randomBtn.disabled = true;
+                let countdown = 5;
+                const originalText = randomBtn.textContent;
+                randomBtn.textContent = `Đợi ${countdown}s...`;
+                
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        randomBtn.textContent = `Đợi ${countdown}s...`;
+                    } else {
+                        clearInterval(countdownInterval);
+                        randomBtn.textContent = originalText;
+                        randomBtn.disabled = false;
+                    }
+                }, 1000);
+            }
+
             const { proxyType, apiKey, proxyList } = await chrome.storage.local.get(['proxyType', 'apiKey', 'proxyList']);
             let proxyData;
 
@@ -248,6 +305,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error('Chưa có cấu hình proxy');
             }
 
+            const selectedProtocol = document.querySelector('input[name="protocol"]:checked')?.value || 'http';
+            proxyData.scheme = selectedProtocol;
+
             const config = {
                 mode: "fixed_servers",
                 rules: {
@@ -257,6 +317,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         port: proxyData.port
                     },
                     bypassList: [
+                        proxyData.host,
                         '127.0.0.1',
                         '192.168.1.*',
                         '*.1proxy.net',
@@ -268,16 +329,59 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             if (proxyData.scheme === 'socks5') {
-                config.rules.singleProxy.scheme = 'socks5';
-                config.rules.singleProxy.proxyDNS = true;
-                config.rules.singleProxy.fallbackProxy = {
+                // Cấu hình cho SOCKS5
+                config.rules.singleProxy = {
                     scheme: 'socks5',
                     host: proxyData.host,
                     port: proxyData.port
                 };
-            } else {
+
+                // Thêm cấu hình proxy DNS cho SOCKS5
+                await chrome.proxy.settings.set({
+                    value: {
+                        mode: "fixed_servers",
+                        rules: {
+                            singleProxy: {
+                                scheme: "socks5",
+                                host: proxyData.host,
+                                port: proxyData.port
+                            },
+                            bypassList: config.rules.bypassList
+                        }
+                    },
+                    scope: 'regular'
+                });
+
+                // Cấu hình WebRTC để sử dụng proxy
                 await chrome.privacy.network.webRTCIPHandlingPolicy.set({
                     value: 'disable_non_proxied_udp'
+                });
+
+                // Cấu hình DNS cho SOCKS5
+                await chrome.proxy.settings.set({
+                    value: {
+                        mode: "fixed_servers",
+                        rules: {
+                            singleProxy: {
+                                scheme: "socks5",
+                                host: proxyData.host,
+                                port: proxyData.port
+                            },
+                            bypassList: config.rules.bypassList
+                        }
+                    },
+                    scope: 'regular'
+                });
+            } else {
+                // Cấu hình cho HTTP
+                await chrome.proxy.settings.set({
+                    value: config,
+                    scope: 'regular'
+                });
+
+                // Reset WebRTC policy về mặc định cho HTTP
+                await chrome.privacy.network.webRTCIPHandlingPolicy.set({
+                    value: 'default'
                 });
             }
 
@@ -287,6 +391,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     action: 'disableProxy'
                 });
             }
+
+            // Đợi một chút để đảm bảo proxy cũ đã được tắt
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             // Cập nhật proxy mới
             await chrome.runtime.sendMessage({
@@ -307,9 +414,15 @@ document.addEventListener('DOMContentLoaded', function () {
             isProxyActive = true;
             checkInputs();
             
+            // Đợi một chút trước khi kiểm tra IP
             setTimeout(checkCurrentIp, 2000);
         } catch (error) {
             showStatus(error.message, true);
+            // Reset nút nếu có lỗi
+            if (randomBtn) {
+                randomBtn.disabled = false;
+                randomBtn.textContent = isProxyActive ? 'Change Proxy' : 'Start';
+            }
         }
     }
 
@@ -365,15 +478,38 @@ document.addEventListener('DOMContentLoaded', function () {
     // Kiểm tra IP hiện tại
     async function checkCurrentIp() {
         try {
-            const response = await fetch('https://ipgeo.gologin.com');
+            const response = await fetch('https://ipgeo.gologin.com', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                },
+                mode: 'cors'
+            });
+            
             if (!response.ok) {
                 throw new Error('Không thể kiểm tra IP');
             }
+            
             const data = await response.json();
             showIpInfo(data);
         } catch (error) {
             console.error('Error checking IP:', error);
-            showStatus('Không thể kiểm tra IP', true);
+            showStatus('Không thể kiểm tra IP: ' + error.message, true);
+            
+            // Hiển thị thông tin lỗi trên giao diện
+            if (ipInfoDiv) {
+                const elements = {
+                    ip: document.getElementById('currentPublicIp'),
+                    timezone: document.getElementById('currentTimezone'),
+                    city: document.getElementById('currentCity'),
+                    country: document.getElementById('currentCountry')
+                };
+
+                if (elements.ip) elements.ip.textContent = 'Lỗi kết nối';
+                if (elements.timezone) elements.timezone.textContent = '-';
+                if (elements.city) elements.city.textContent = '-';
+                if (elements.country) elements.country.textContent = '-';
+            }
         }
     }
 
@@ -424,9 +560,9 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Load proxy list
             if (result.proxyList && proxyListInput) {
-                proxyListInput.value = result.proxyList;
+                proxyListInput.value = formatProxyListToText(result.proxyList);
             }
-            
+
             // Load thông tin proxy đang active
             if (result.savedProxyData && proxyInfoDiv) {
                 showProxyInfo(result.savedProxyData);
@@ -437,7 +573,7 @@ document.addEventListener('DOMContentLoaded', function () {
             checkInputs();
             
             // Kiểm tra IP hiện tại
-            checkCurrentIp();
+            setTimeout(checkCurrentIp, 1000);
         } catch (error) {
             console.error('Error loading saved config:', error);
             showStatus('Không thể tải cấu hình đã lưu', true);
@@ -490,17 +626,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error(data.message || 'Lỗi từ API');
             }
 
-            // Format proxy list
-            const proxyList = data.data.map(proxy => {
-                if (proxy.username && proxy.password) {
-                    return `${proxy.ip}:${proxy.port}:${proxy.username}:${proxy.password}`;
-                }
-                return `${proxy.ip}:${proxy.port}`;
-            }).join('\n');
+            // Format proxy list thành JSON
+            const proxyList = data.data.map(proxy => ({
+                ip: proxy.ip,
+                port: proxy.port,
+                username: proxy.username || '',
+                password: proxy.password || '',
+                geo_local: proxy.geo_local || '',
+                scheme: 'http'
+            }));
+
+            // Lưu proxyList dưới dạng JSON vào storage
+            await chrome.storage.local.set({
+                'proxyList': JSON.stringify(proxyList)
+            });
+
+            // Format để hiển thị
+            const displayList = formatProxyListToText(proxyList);
 
             // Update UI
-            getProxyList.value = proxyList;
-            proxyCount.textContent = proxyList.split('\n').length;
+            getProxyList.value = displayList;
+            proxyCount.textContent = proxyList.length;
             totalProxies.textContent = data.total;
             apiStatus.textContent = 'Thành công';
             showStatus('Đã lấy danh sách proxy thành công');
@@ -508,7 +654,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Copy to main proxy list if it's empty
             const mainProxyList = document.getElementById('proxyList');
             if (!mainProxyList.value.trim()) {
-                mainProxyList.value = proxyList;
+                mainProxyList.value = displayList;
                 checkInputs();
             }
         } catch (error) {
@@ -520,5 +666,74 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (getProxyBtn) {
         getProxyBtn.addEventListener('click', getProxyListFromApi);
+    }
+
+    // Change API functionality
+    const changeApiLink = document.getElementById('changeApiLink');
+    const changeApiBtn = document.getElementById('changeApiBtn');
+    const changeApiStatus = document.getElementById('changeApiStatus');
+
+    // Load saved API link
+    chrome.storage.local.get(['changeApiLink'], function(result) {
+        if (result.changeApiLink && changeApiLink) {
+            changeApiLink.value = result.changeApiLink;
+        }
+    });
+
+    // Hàm xử lý link
+    function processApiLink(link) {
+        // Xóa ký tự @ nếu có ở đầu
+        link = link.replace(/^@/, '');
+        
+        // Kiểm tra và thêm http:// nếu cần
+        if (!link.startsWith('http://') && !link.startsWith('https://')) {
+            link = 'http://' + link;
+        }
+        
+        return link;
+    }
+
+    async function sendChangeApiRequest() {
+        try {
+            let apiLink = changeApiLink.value.trim();
+            if (!apiLink) {
+                showStatus('Vui lòng nhập API link', true);
+                return;
+            }
+
+            // Xử lý link
+            apiLink = processApiLink(apiLink);
+
+            // Lưu API link đã xử lý
+            await chrome.storage.local.set({
+                'changeApiLink': apiLink
+            });
+
+            // Cập nhật giá trị hiển thị
+            changeApiLink.value = apiLink;
+
+            changeApiStatus.textContent = 'Đang xử lý...';
+            changeApiStatus.className = 'status';
+
+            const response = await fetch(apiLink);
+            const data = await response.json();
+
+            if (response.ok && data.status === true) {
+                changeApiStatus.textContent = 'Đã gửi lệnh thành công';
+                changeApiStatus.className = 'status success';
+                showStatus('Đã gửi lệnh thành công');
+            } else {
+                throw new Error(data.message || 'Lỗi không xác định');
+            }
+        } catch (error) {
+            console.error('Error sending change API request:', error);
+            changeApiStatus.textContent = error.message;
+            changeApiStatus.className = 'status error';
+            showStatus(error.message, true);
+        }
+    }
+
+    if (changeApiBtn) {
+        changeApiBtn.addEventListener('click', sendChangeApiRequest);
     }
 });

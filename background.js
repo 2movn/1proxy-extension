@@ -1,6 +1,6 @@
 // Xử lý xác thực proxy cho manifest v3
 chrome.webRequest.onAuthRequired.addListener(
-    async function(details, callback) {
+    function(details, callback) {
         chrome.storage.local.get(['savedProxyData'], function(result) {
             if (result.savedProxyData && result.savedProxyData.username && result.savedProxyData.password) {
                 callback({
@@ -13,17 +13,22 @@ chrome.webRequest.onAuthRequired.addListener(
                 callback();
             }
         });
+        return true;
     },
     { urls: ["<all_urls>"] },
     ["asyncBlocking"]
 );
+chrome.proxy.settings.get({ incognito: false }, function(config) {
+    console.log('Proxy hiện tại:', config.value);
+});
 
 // Khởi tạo cài đặt khi extension được cài đặt
 chrome.runtime.onInstalled.addListener(function() {
     chrome.storage.local.set({
         'apiKey': '',
         'isProxyEnabled': true,
-        'savedProxyData': null
+        'savedProxyData': null,
+        'changeApiLink': ''
     });
 });
 
@@ -39,8 +44,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 // Lưu thông tin proxy
                 chrome.storage.local.set({
                     'savedProxyData': proxyData
+                }, function() {
+                    // Đảm bảo thông tin được lưu trước khi gửi response
+                    sendResponse({ success: true });
                 });
-                sendResponse({ success: true });
             }
         );
         return true;
@@ -48,8 +55,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     if (request.action === 'disableProxy') {
         chrome.proxy.settings.clear({ scope: 'regular' }, function() {
-            chrome.storage.local.set({ 'savedProxyData': null });
-            sendResponse({ success: true });
+            chrome.storage.local.set({ 'savedProxyData': null }, function() {
+                sendResponse({ success: true });
+            });
         });
         return true;
     }

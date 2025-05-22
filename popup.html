@@ -293,6 +293,46 @@
             margin-top: 5px;
             text-align: right;
         }
+
+        .css-input-group {
+            display: block;
+            width: 100%;
+        }
+
+        .css-input-api-link {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 2px solid var(--primary);
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+        }
+
+        .css-input-api-link:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
+            outline: none;
+        }
+
+        #change-api-tab .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #change-api-tab .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #change-api-tab .proxy-info {
+            flex: 1;
+        }
+
+        #change-api-tab .status {
+            margin-top: auto;
+        }
     </style>
 </head>
 
@@ -303,8 +343,9 @@
         </div>
 
         <div class="tabs">
-            <div class="tab active" data-tab="default">Mặc định</div>
+            <div class="tab active" data-tab="default">Auto Proxy</div>
             <div class="tab" data-tab="get-proxy">Get 1Proxy</div>
+            <div class="tab" data-tab="change-api">Change API</div>
         </div>
 
         <div class="tab-content active" id="default-tab">
@@ -312,11 +353,11 @@
                 <div class="radio-group">
                     <label class="radio-option">
                         <input type="radio" name="proxyType" value="api" checked>
-                        API Key
+                        <span  title="Chỉ hỗ trợ proxy api gói [Xoay 0 giây] của 1proxy.net" >API Key</span>
                     </label>
                     <label class="radio-option">
                         <input type="radio" name="proxyType" value="list">
-                        Proxy List
+                        <span  title="Hỗ trợ nhập danh sách proxy và chọn random proxy từ danh sách" >Proxy List</span>
                     </label>
                 </div>
 
@@ -339,7 +380,7 @@
 
                 <div id="apiInputGroup" class="input-group">
                     <label>API Key:</label>
-                    <input type="text" id="apiKey" placeholder="Nhập API key">
+                    <input title="Chỉ hỗ trợ proxy api lấy proxy từ 1proxy.net - Gói xoay 0 giây" type="text" id="apiKey" placeholder="Nhập API key">
                 </div>
                 
                 <div id="listInputGroup" class="input-group css-input-group" style="display: none;">
@@ -376,7 +417,7 @@
             <div class="left-panel">
                 <div class="input-group">
                     <label>API Key:</label>
-                    <input type="text" id="getProxyApiKey" placeholder="Nhập API key">
+                    <input title="Chỉ hỗ trợ lấy proxy từ api 1proxy.net" type="text" id="getProxyApiKey" placeholder="Nhập API key">
                 </div>
                 <button id="getProxyBtn" class="save-btn">Get Proxy</button>
                 <div id="getProxyInfo" class="proxy-info">
@@ -391,6 +432,26 @@
                     <textarea class="css-get-proxy-list" id="getProxyList" readonly placeholder="Danh sách proxy sẽ hiển thị ở đây"></textarea>
                     <div class="proxy-count">Số lượng proxy: <span id="proxyCount">0</span></div>
                 </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="change-api-tab">
+            <div class="left-panel">
+                <div class="input-group css-input-group">
+                    <label>API Link:</label>
+                    <input title="Chỉ hỗ trợ gửi lệnh đến api và nhận kết quả" type="text" id="changeApiLink" class="css-input-api-link" placeholder="Nhập API link (ví dụ: https://ipviet.store/public/reset?proxy=svbk01.ipviet.store:10012)">
+                </div>
+                <button id="changeApiBtn" class="save-btn">Change</button>
+            </div>
+            <div class="right-panel">
+                <div class="proxy-info">
+                    <h3>Hướng dẫn:</h3>
+                    <p>1. Nhập API link vào ô bên trái</p>
+                    <p>2. Click nút "Change" để gửi request</p>
+                    <p>3. Đợi kết quả trả về</p>
+                    <p>4. Nếu thành công sẽ hiển thị thông báo "Đã gửi lệnh thành công"</p>
+                </div>
+                <div id="changeApiStatus" class="status"></div>
             </div>
         </div>
     </div>
