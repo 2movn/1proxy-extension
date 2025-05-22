@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>1Proxy Manager</title>
+    <style>
+        :root {
+            --primary: #27ae60;
+            --primary-light: #2ecc71;
+            --secondary: #d35400;
+            --secondary-light: #e67e22;
+            --danger: #c0392b;
+            --danger-light: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --white: #ffffff;
+            --gray: #95a5a6;
+            --border-radius: 8px;
+            --shadow: 0 4px 15px rgba(0,0,0,0.2);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 800px;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, var(--dark), var(--primary));
+            color: var(--white);
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            color: var(--dark);
+        }
+
+        .left-panel, .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            padding: 15px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header h2 {
+            color: var(--white);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .input-group, .radio-group, .protocol-group {
+            display: flex;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(46, 204, 113, 0.2);
+        }
+
+        .input-group label, .radio-option label {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .radio-option, .protocol-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 10px;
+        }
+
+        .radio-option input[type="radio"], .protocol-option input[type="radio"] {
+            accent-color: var(--primary);
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid var(--primary);
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
+            outline: none;
+        }
+
+
+        .css-input-proxy-list{
+            height: 150px;
+            resize: vertical;
+        }
+        .css-get-proxy-list{
+            height: 200px;
+            resize: vertical;
+        }
+
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            grid-column: 1 / -1;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            flex: 1;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--white);
+        }
+
+        .save-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            box-shadow: 0 2px 5px rgba(46, 204, 113, 0.3);
+        }
+
+        .random-btn {
+            background: linear-gradient(135deg, var(--secondary), var(--secondary-light));
+            box-shadow: 0 2px 5px rgba(230, 126, 34, 0.3);
+        }
+
+        .stop-btn {
+            background: linear-gradient(135deg, var(--danger), var(--danger-light));
+            box-shadow: 0 2px 5px rgba(231, 76, 60, 0.3);
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: var(--gray);
+            cursor: not-allowed;
+        }
+
+        .status {
+            grid-column: 1 / -1;
+            padding: 12px;
+            border-radius: var(--border-radius);
+            display: none;
+            font-weight: bold;
+            color: var(--white);
+        }
+
+        .status.success {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            display: block;
+        }
+
+        .status.error {
+            background: linear-gradient(135deg, var(--danger), var(--danger-light));
+            display: block;
+        }
+
+        .proxy-info, .ip-info {
+            padding: 20px;
+            border-radius: var(--border-radius);
+            color: var(--white);
+            height: 100%;
+        }
+
+        .proxy-info {
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+        }
+
+        .ip-info {
+            background: linear-gradient(135deg, #8e44ad, #9b59b6);
+        }
+
+        .proxy-info h3, .ip-info h3 {
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .proxy-info p, .ip-info p {
+            margin: 8px 0;
+        }
+
+        .proxy-info .label, .ip-info .label {
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .protocol-group {
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            border: 1px solid rgba(46, 204, 113, 0.2);
+        }
+
+        .protocol-options {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .protocol-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 10px;
+        }
+
+        .protocol-info {
+            font-size: 12px;
+            color: var(--gray);
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(236, 240, 241, 0.5);
+            border-radius: 4px;
+            width: 100%;
+        }
+        .css-input-group{
+            display: block;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            grid-column: 1 / -1;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(46, 204, 113, 0.2);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--dark);
+            font-weight: bold;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: var(--white);
+            border-color: transparent;
+        }
+
+        .tab-content {
+            display: none;
+            grid-column: 1 / -1;
+        }
+
+        .tab-content.active {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .get-proxy-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .get-proxy-form input {
+            flex: 1;
+        }
+
+        .proxy-count {
+            font-size: 12px;
+            color: var(--gray);
+            margin-top: 5px;
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>1Proxy Manager</h2>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="default">Mặc định</div>
+            <div class="tab" data-tab="get-proxy">Get 1Proxy</div>
+        </div>
+
+        <div class="tab-content active" id="default-tab">
+            <div class="left-panel">
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="proxyType" value="api" checked>
+                        API Key
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="proxyType" value="list">
+                        Proxy List
+                    </label>
+                </div>
+
+                <div class="protocol-group">
+                    <div class="protocol-options">
+                        <label class="protocol-option">
+                            <input type="radio" name="protocol" value="http" checked>
+                            HTTP
+                        </label>
+                        <label class="protocol-option">
+                            <input type="radio" name="protocol" value="socks5">
+                            SOCKS5
+                        </label>
+                    </div>
+                    <div class="protocol-info">
+                        HTTP: Hỗ trợ HTTP/HTTPS traffic<br>
+                        SOCKS5: Hỗ trợ tất cả loại traffic (TCP/UDP)
+                    </div>
+                </div>
+
+                <div id="apiInputGroup" class="input-group">
+                    <label>API Key:</label>
+                    <input type="text" id="apiKey" placeholder="Nhập API key">
+                </div>
+                
+                <div id="listInputGroup" class="input-group css-input-group" style="display: none;">
+                    <label>Proxy List (mỗi dòng 1 proxy):</label>
+                    <textarea class="css-input-proxy-list" id="proxyList" placeholder="Nhập danh sách proxy&#10;Ví dụ:&#10;ip:port:username:password&#10;ip:port:username:password"></textarea>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div id="proxyInfo" class="proxy-info">
+                    <h3>Thông tin Proxy hiện tại:</h3>
+                    <p><span class="label">Protocol:</span> <span id="currentProtocol">-</span></p>
+                    <p><span class="label">IP:</span> <span id="currentIp">-</span>:<span id="currentPort">-</span>:***:***</p>
+                </div>
+
+                <div id="ipInfo" class="ip-info">
+                    <h3>Thông tin IP hiện tại:</h3>
+                    <p><span class="label">IP Public:</span> <span id="currentPublicIp">-</span></p>
+                    <p><span class="label">Time Zone:</span> <span id="currentTimezone">-</span></p>
+                    <p><span class="label">City:</span> <span id="currentCity">-</span></p>
+                    <p><span class="label">Country:</span> <span id="currentCountry">-</span></p>
+                </div>
+                <div id="status" class="status"></div>
+            </div>
+
+            <div class="button-group">
+                <button id="saveBtn" class="save-btn" disabled>Lưu</button>
+                <button id="randomBtn" class="random-btn" disabled>Random Proxy</button>
+                <button id="stopBtn" class="stop-btn" disabled>Stop</button>
+            </div>
+        </div>
+
+        <div class="tab-content" id="get-proxy-tab">
+            <div class="left-panel">
+                <div class="input-group">
+                    <label>API Key:</label>
+                    <input type="text" id="getProxyApiKey" placeholder="Nhập API key">
+                </div>
+                <button id="getProxyBtn" class="save-btn">Get Proxy</button>
+                <div id="getProxyInfo" class="proxy-info">
+                    <h3>Thông tin API:</h3>
+                    <p><span class="label">Tổng số proxy:</span> <span id="totalProxies">-</span></p>
+                    <p><span class="label">Trạng thái:</span> <span id="apiStatus">-</span></p>
+                </div>
+            </div>
+            <div class="right-panel">
+                <div class="input-group css-input-group">
+                    <label>Danh sách Proxy:</label>
+                    <textarea class="css-get-proxy-list" id="getProxyList" readonly placeholder="Danh sách proxy sẽ hiển thị ở đây"></textarea>
+                    <div class="proxy-count">Số lượng proxy: <span id="proxyCount">0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>
