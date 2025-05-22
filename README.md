@@ -11,4 +11,5 @@ Một công cụ giúp người dùng có thể dễ dạng lấy proxy và sử
 - Hỗ trợ hiển thị thông tin ip của proxy đang sử dụng một cách trực quan.
 
 # Tải về:
+ - Version: [2.0.1](https://github.com/2movn/1proxy-extension/releases/download/2.0.0.1/1proxy.zip)
  - Version: [2.0.0](https://github.com/2movn/1proxy-extension/releases/download/2.0.0/1proxy.zip)
